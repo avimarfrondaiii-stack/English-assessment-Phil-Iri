@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phil-IRI JHS Assessment System</title>
+    <style>
+        /* --- CORE CSS STYLING --- */
+        :root {
+            --primary-color: #004c97; /* Deep Blue */
+            --secondary-color: #ffd700; /* Gold/Yellow */
+            --text-color: #34495e; /* Dark Slate */
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --bg-light: #f5f7fa;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-light); margin: 0; padding: 0; color: var(--text-color); }
+        header { background: var(--primary-color); color: #fff; padding: 1.5rem 1rem; text-align: center; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); margin-bottom: 20px; }
+        header h1 { margin: 0; font-size: 1.8em; }
+        .container { max-width: 1000px; margin: 30px auto; padding: 25px; background: #fff; border-radius: 12px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1); }
+        h2 { color: var(--primary-color); border-bottom: 2px solid var(--secondary-color); padding-bottom: 10px; margin-top: 0; display: flex; align-items: center; }
+        h2 i { margin-right: 10px; color: var(--secondary-color); }
+        button { background: var(--primary-color); color: #fff; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin: 5px 2px; transition: background 0.3s, transform 0.1s; }
+        button:hover { background: #0060b0; transform: translateY(-1px); }
+        input, select, textarea { width: 100%; padding: 10px; margin: 5px 0 15px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
+        .card { background: #ecf0f1; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid var(--secondary-color); }
+        
+        /* Dashboard Styles */
+        #dashboard-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
+        #dashboard-table th, #dashboard-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        #dashboard-table th { background-color: var(--primary-color); color: white; font-weight: bold; }
+        .level-frustration { background-color: #f8d7da; color: #721c24; }
+        .level-instructional { background-color: #fff3cd; color: #856404; }
+        .level-independent, .level-gradeready { background-color: #d4edda; color: #155724; }
+
+        .gst-question-list { list-style-type: none; padding: 0; }
+        .gst-question-list li { margin-bottom: 20px; padding: 10px; border-bottom: 1px solid #ddd; }
+        .gst-question-list label { display: block; margin-left: 15px; font-weight: normal; cursor: pointer; }
+
+        .hidden { display: none; }
+        .report-highlight { font-size: 1.1em; }
+        .result-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .result-table th, .result-table td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+
+        /* Dashboard Summary Grid */
+        #summary-metrics { display: flex; justify-content: space-around; flex-wrap: wrap; padding: 15px; background: #e0f7fa; border-radius: 8px; margin-bottom: 20px; border: 1px solid #b2ebf2; font-weight: bold; }
+        #summary-metrics > div { margin: 5px 10px; text-align: center; }
+        .alert-info { padding: 15px; margin-top: 15px; border-radius: 4px; background-color: #e9f7ff; border: 1px solid #c7e9ff; color: #007bff; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1 id="mainHeader">Phil-IRI JHS Assessment System</h1>
+    <p id="subHeader">Loading Role-Based View...</p>
+</header>
+
+<div class="container">
+    
+    <div id="teacherDashboardView" class="hidden">
+        <h2><i class="fas fa-desktop"></i> Teacher Mainframe Dashboard</h2>
+        <p class="alert-info">
+            This dashboard summarizes the results of all completed learner assessments. (Linked by Local Storage Key: <code>philiriJHSData</code>)
+        </p>
+        
+        <div id="summary-metrics"></div>
+
+        <h3>Individual Learner Progress</h3>
+        <table id="dashboard-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Grade</th>
+                    <th>GST Score (0-40)</th>
+                    <th>Final Reading Level</th>
+                    <th>WPM</th>
+                    <th>Passage Level</th>
+                    <th>Priority Gap</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+        <p id="no-data-message" style="text-align: center; color: var(--danger-color); margin-top: 30px;">No learners have been assessed yet.</p>
+        <button onclick="clearAllData()" style="background-color: var(--danger-color); margin-top: 20px;">Clear All Stored Learner Data</button>
+    </div>
+
+    <div id="learnerAssessmentView" class="hidden">
+        
+        <div id="loginScreen" class="card">
+            <h2><i class="fas fa-lock"></i> Learner Access Required</h2>
+            <p>Please enter the unique passcode provided by your teacher to begin the assessment. This will automatically load your name and grade level.</p>
+            <label for="learnerPasscode">Student Passcode:</label>
+            <input type="text" id="learnerPasscode" placeholder="Enter your passcode (e.g., 2026-G8-001)" required>
+            <button onclick="learnerLogin()" style="width:100%;">Access Assessment</button>
+        </div>
+
+        <div id="step0" class="card hidden">
+            <h2><i class="fas fa-user"></i> Step 0: Learner Information & Group Screening Test</h2>
+            
+            <label for="studentName">Learner Name (Pre-populated):</label>
+            <input type="text" id="studentName" placeholder="Enter full name" disabled required>
+            
+            <label for="studentGrade">Current Grade Level (Pre-populated):</label>
+            <select id="studentGrade">
+                <option value="7">Grade 7</option>
+                <option value="8">Grade 8</option>
+                <option value="9">Grade 9</option>
+                <option value="10">Grade 10</option>
+            </select>
+
+            <h3 style="color:var(--danger-color); margin-top: 20px;">Group Screening Test (GST) - 40 Items</h3>
+            <p>The GST has 40 multiple-choice items. Passing score: **28/40** (Learners who pass are considered Grade-Ready).</p>
+            
+            <ol id="gstQuestionsContainer" class="gst-question-list"></ol>
+            
+            <button onclick="submitGST()" style="width:100%; background:var(--danger-color);">Submit Screening Test & Analyze</button>
+        </div>
+
+        <div id="step1" class="card hidden">
+            <h2><i class="fas fa-chart-bar"></i> Step 1: GST Analysis (Raw Score)</h2>
+            <div id="gstResultOutput"></div>
+        </div>
+
+        <div id="step2" class="card hidden">
+            <h2><i class="fas fa-microphone"></i> Stage 2: Individualized Assessment (Oral Reading)</h2>
+            <p><strong>Starting Passage:</strong> <span id="passageGradeDisplay">--</span> | <span id="wordCountDisplay">--</span></p>
+            <p id="oralPassage" style="border: 1px solid #ddd; padding: 15px; background: #fff; max-height: 200px; overflow-y: auto;">Passage text will appear here.</p>
+            <button onclick="startReading()" style="background:var(--success-color); margin-bottom: 15px;">Display Passage & Begin Reading</button>
+            
+            <div id="fluencyCheck" class="hidden">
+                <h3><i class="fas fa-stopwatch"></i> Step 2A: Reading Fluency (WPM)</h3>
+                <label for="readingTime">Actual Reading Time (in seconds):</label>
+                <input type="number" id="readingTime" min="1" placeholder="e.g., 60 seconds" required>
+                <button onclick="calculateFluency()" style="width:100%; background:var(--warning-color);">Calculate WPM & Proceed to Accuracy</button>
+                <p id="wpmResult" style="margin-top: 10px; font-weight: bold;"></p>
+            </div>
+
+            <div id="accuracyCheck" class="hidden" style="margin-top: 20px;">
+                <h3><i class="fas fa-edit"></i> Step 2B: Reading Accuracy (Errors)</h3>
+                <p>Record errors below as the learner reads. Errors are crucial for determining Word Recognition Score.</p>
+                <div id="errorInputs" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;"></div>
+                <button onclick="submitOralErrors()" style="width:100%; margin-top:15px; background:var(--success-color);">Compute Word Recognition & Proceed</button>
+            </div>
+        </div>
+
+        <div id="step3" class="card hidden">
+            <h2><i class="fas fa-question-circle"></i> Step 3: Reading Comprehension</h2>
+            <p>Answer the following questions based on the passage read.</p>
+            <ol id="comprehensionQuestions"></ol>
+            <button onclick="submitComprehension()" style="background:var(--success-color);">Compute Comprehension Score & Final Level</button>
+        </div>
+<div id="step4" class="card hidden">
+        <h2><i class="fas fa-pencil-alt"></i> Stage 4: Writing Skills Assessment (40 Items)</h2>
+        <p>This 40-item test assesses the learner's foundational knowledge of **Enabling Writing Skills** (Grammar, Mechanics, and Coherence) required for their grade level.</p>
+
+        <ol id="writingQuestionsContainer" class="gst-question-list"></ol>
+
+        <button onclick="submitWritingAssessment()" style="width:100%; background:var(--primary-color);">Submit Writing Assessment & Finish</button>
+
+        <div id="writingResultOutput" style="margin-top: 20px;"></div>
+    </div>
+
+        <div id="step5" class="card hidden">
+            <h2><i class="fas fa-chart-line"></i> Assessment Summary & Completion</h2>
+            <p class="alert-info">Assessment successfully completed! Your results have been recorded by your teacher.</p>
+            
+            <div id="finalLevel" class="card">
+                <h3>Final Phil-IRI Reading Level</h3>
+                <p>Final Level Determination: $Level = Lower \text{ of } (\text{Word Recognition Level or Comprehension Level})$</p>
+                <p><strong><span id="finalReadingLevelDisplay">--</span></strong></p>
+                <p>Priority Skill Gap: <strong id="skillGapDisplay">--</strong></p>
+            </div>
+            
+            <div id="studyPlan" class="card"></div>
+            
+            <button onclick="window.location.reload();" style="width:100%; background:var(--text-color);">Start New Assessment</button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // --- GLOBAL CONSTANTS ---
+    const TEACHER_SECRET_KEY = 'teacher123'; 
+    const GST_PASS_THRESHOLD = 28;    
+    const LOCAL_STORAGE_KEY = 'philiriJHSData'; // *** THE CRITICAL LINKING KEY ***
+    
+    // HARDCODED STUDENT PASSCODES (for simulation purposes)
+    const STUDENT_PASSCODES = {
+        '2026-G8-005': { name: 'ABIARO, LOEJIE TONGDAN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-006': { name: 'ANTIPUESTO, MARVIN JR LEONES', grade: '8', section: 'Juan Luna' },
+	'2026-G8-007': { name: 'BALABA, RENHART PETALCORIN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-008': { name: 'BASAÑEZ, CHRISTIAN JAY ALBACIA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-009': { name: 'BELEGAÑO, KENNETH AVILA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-010': { name: 'BENDONG, RYAN MIGUEL CALMA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-011': { name: 'CADUYAG, HANZ ISRAEL', grade: '8', section: 'Juan Luna' },
+	'2026-G8-012': { name: 'CARDINAS, EARL DHANE PIODOS', grade: '8', section: 'Juan Luna' },
+	'2026-G8-013': { name: 'LABUTAY, KENT JOEY PADILLA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-014': { name: 'LICAYAN, KHALIL INDAPAN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-015': { name: 'MACARIOLA, ALEXANDER HUIT', grade: '8', section: 'Juan Luna' },
+	'2026-G8-016': { name: 'MARTEL, KENTH LANDRY', grade: '8', section: 'Juan Luna' },
+	'2026-G8-017': { name: 'PADERNAL, XIANN JHOSHUA LADERA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-018': { name: 'RABINA, RODULF JR TAMBOG', grade: '8', section: 'Juan Luna' },
+	'2026-G8-019': { name: 'RAGANAS, JOHN DEON EGUIJA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-020': { name: 'SOSALO, XIAN ANGELO SULIT', grade: '8', section: 'Juan Luna' },
+	'2026-G8-021': { name: 'TAMPUS, EJAY BHOY SORBILLA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-022': { name: 'TILANDUCA, SHADRACK CABILIS', grade: '8', section: 'Juan Luna' },
+	'2026-G8-023': { name: 'VERCEDE, REYNOLD CONCILLO', grade: '8', section: 'Juan Luna' },
+	'2026-G8-024': { name: 'RANAN, SHERWIN B', grade: '8', section: 'Juan Luna' },
+	'2026-G8-025': { name: 'DISTO, HAMPREY', grade: '8', section: 'Juan Luna' },
+
+	'2026-G8-026': { name: 'ANGEL, JANNA PEARL SALGA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-027': { name: 'CAMPLON, ALIZA AGUJAR', grade: '8', section: 'Juan Luna' },
+	'2026-G8-028': { name: 'CAÑETE, ANJIELECA RABUTAN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-029': { name: 'CASTOR, JIAN GA-AN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-030': { name: 'CORONEL, ANDREA LINGKITAN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-031': { name: 'GUMANDOY, CHAENDREI BLISS TAN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-032': { name: 'LEGANDO, CHRISTINE LEEN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-033': { name: 'MANGARON, MARIAN LU DOMINGO', grade: '8', section: 'Juan Luna' },
+	'2026-G8-034': { name: 'SARALIBO, LOREIZA ANNA REVILLA', grade: '8', section: 'Juan Luna' },
+	'2026-G8-035': { name: 'TESORO, JHELLIAN MANGUIRAN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-036': { name: 'TOLIBAO, BIANCA REESE', grade: '8', section: 'Juan Luna' },
+	'2026-G8-037': { name: 'TORNIADO, MELANIE JANE ROMEO', grade: '8', section: 'Juan Luna' },
+	'2026-G8-038': { name: 'VILLALUZ, KRYSTAL JADE LINDONGAN', grade: '8', section: 'Juan Luna' },
+	'2026-G8-039': { name: 'AMOR, YEZA VENIZH B', grade: '8', section: 'Juan Luna' },
+	'2026-G8-040': { name: 'LILO', grade: '8', section: 'Juan Luna' },
+
+        // Add unique ID for each student based on the passcode for accurate data saving
+    };
+
+    const PHIL_IRI_LEVELS = {
+        Independent: { wrMin: 97, compMin: 80, className: 'level-independent' },
+        Instructional: { wrMin: 90, compMin: 59, className: 'level-instructional' },
+        Frustration: { wrMax: 89, compMax: 58, className: 'level-frustration' }
+    };
+    const errorTypes = ["Mispronunciation", "Omission", "Reversal", "Hesitation (>3s)", "Substitution", "Insertion", "Repetition", "Self-Corrections"];
+    
+    // --- DATA STORE ---
+    // Critical: Loads data from the shared storage key
+    let studentsData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || [];
+    let currentLearnerData = {};
+    let currentErrors = {};
+    let totalWords = 0;
+    let passageGrade = '';
+
+    // --- GST QUESTIONS (40 items) ---
+    const baseGSTQuestions = [
+        { question: "Which describes the main idea of a text on OFW remittances?", correct: "B", choices: ["A. OFW jobs are high paying.", "B. Remittances significantly bolster the economy but create social challenges.", "C. Filipinos work abroad due to lack of local jobs.", "D. All OFWs return home after one year."] },
+        { question: "In 'The politician *mitigated* the criticism...', what does 'mitigated' mean?", correct: "C", choices: ["A. Increased or worsened", "B. Ignored completely", "C. Made less severe or minimized", "D. Confirmed the truth of"] },
+        { question: "Which organizational pattern is appropriate for different types of Philippine folk dances and origins?", correct: "D", choices: ["A. Chronological order", "B. Cause and effect", "C. Problem and solution", "D. Classification/Categorization"] },
+        { question: "Which statement is an **opinion**?", correct: "A", choices: ["A. The *sinigang* is undoubtedly the best Filipino soup dish.", "B. Manila is the capital city of the Philippines.", "C. The sun rises in the east.", "D. Mount Apo is the highest mountain."] },
+        { question: "Complete the sentence: 'Neither the students nor the teacher ______ ready for the quiz.'", correct: "A", choices: ["A. was", "B. were", "C. are", "D. is"] },
+        { question: "The phrase 'Don't put all your eggs in one basket' is an example of which literary device?", correct: "B", choices: ["A. Hyperbole", "B. Idiom", "C. Alliteration", "D. Metaphor"] },
+        { question: "What is the common **theme** in post-colonial Filipino novels like *Noli Me Tangere*?", correct: "A", choices: ["A. Social injustice and resistance to oppression", "B. The joy of modern urban life", "C. Instructions for farming rice", "D. The best recipe for adobo"] },
+        { question: "What must readers do to find the **implied purpose** of a persuasive essay?", correct: "B", choices: ["A. Count the number of sentences.", "B. Infer the author's intention and point of view from evidence.", "C. Only look at the title of the essay.", "D. Read the essay backward."] },
+        { question: "Identify the main function of the conjunction in: 'The team practiced diligently, **yet** they still lost.'", correct: "C", choices: ["A. To show cause", "B. To show time", "C. To show contrast", "D. To show addition"] },
+        { question: "The word '*indispensable*' means:", correct: "D", choices: ["A. Easily disposable or useless", "B. Optional or unnecessary", "C. Very expensive to buy", "D. Absolutely necessary or essential"] }
+    ];
+    const gstQuestions = [];
+    // Repeat 4 times to make 40 questions (ensure this array is exactly 40 items)
+    for (let i = 0; i < 4; i++) { gstQuestions.push(...baseGSTQuestions); }    
+
+    // --- PASSAGES (Simplified) ---
+    let passages = {
+        // ... (Passages data is kept as you provided) ...
+        "4": { text: `The small nipa hut stood beside a green rice field. Inside, a family of four lived happily. They woke up early every morning to the sound of roosters and the smell of fresh coffee brewing. The father, a farmer, would walk out to his field. The children learned the value of hard work and often helped their father plant seedlings during the weekends. Their grandmother always said, "The earth rewards those who care for it." (Total Words: 104)`, 
+                questions:[
+                    {question:"What color was the nipa hut painted? (Literal)", correct:"B", choices:["A. Green","B. Bright yellow","C. Brown","D. White"]},
+                    {question:"The word 'sturdy' most likely means: (Vocabulary)", correct:"A", choices:["A. Strong and well-made","B. Old and falling apart","C. Very colorful","D. Made of metal"]},
+                    {question:"(Inferential) What did the children learn by helping their father? ", correct:"B", choices:["A. That school is easy","B. The value of hard work and patience","C. That they should move to the city","D. How to cook dinner"]},
+                    {question:"What did the grandmother say about the earth? (Literal)", correct:"A", choices:["A. The earth rewards those who care for it.","B. The earth is always angry.","C. The earth is the biggest planet.","D. The earth is only for farmers."]}
+                ]
+        },
+        "7": { text: `The Philippines' strategic location within the 'Ring of Fire' contributes to its rich geothermal energy potential. This form of renewable energy harnesses heat from deep inside the earth to generate steam to produce electricity. Unlike fossil fuels, geothermal plants emit significantly lower levels of greenhouse gases, making them crucial for sustainable development. The utilization of this resource enhances energy independence, reducing reliance on volatile global oil markets. Key fields serve as baseload power sources, meaning they run consistently regardless of weather conditions, unlike solar or wind power. (Total Words: 139)`,
+                questions:[
+                    {question:"What is the primary source of geothermal energy? (Literal)", correct:"A", choices:["A. Heat from deep inside the earth","B. Sunlight","C. Wind currents","D. Flowing water"]},
+                    {question:"In which global region is the Philippines strategically located? (Literal)", correct:"C", choices:["A. The Bermuda Triangle","B. The Pacific Ocean Belt","C. The 'Ring of Fire'","D. The Arctic Circle"]},
+                    {question:"The word 'mitigates' means: (Vocabulary)", correct:"B", choices:["A. Increases or worsens","B. Makes less severe or minimizes","C. Stops completely","D. Ignores totally"]},
+                    {question:"(Inferential) Why are geothermal plants better than solar or wind as a baseload source?", correct:"A", choices:["A. They can run consistently regardless of weather conditions.","B. They are cheaper to build.","C. They use less water.","D. They are quieter to operate."]}
+                ]
+        },
+        "10": { text: `Micro-finance initiatives have become an indispensable tool for poverty alleviation in rural Filipino communities, where access to traditional banking services is often limited. These programs provide small loans and financial literacy training, primarily empowering women to start small businesses. The impact extends beyond mere income generation; it fosters a sense of financial inclusion and self-reliance, shifting economic control back to the grassroots level. Unlike conventional loans, micro-finance often relies on social collateral—group repayment guarantees—ensuring higher repayment rates and community cohesion. (Total Words: 147)`,
+                questions:[
+                    {question:"What is the main purpose of micro-finance initiatives? (Literal)", correct:"A", choices:["A. Poverty alleviation in rural communities","B. Funding large corporate projects","C. Buying luxury goods","D. Developing high-tech gadgets"]},
+                    {question:"What type of collateral do micro-finance loans often rely on? (Literal)", correct:"D", choices:["A. Cars and houses","B. Jewelry","C. Land titles","D. Social collateral (group guarantees)"]},
+                    {question:"The word 'indispensable' means: (Vocabulary)", correct:"B", choices:["A. Optional or unnecessary","B. Absolutely necessary or essential","C. Very expensive","D. Easily replaced"]},
+                    {question:"(Inferential) Why are women often the primary focus of these programs?", correct:"C", choices:["A. They are the only ones who can repay loans.","B. They are often better at business than men.","C. Empowering women often leads to better household financial management and community development.","D. Men are not allowed to join."]}
+                ]
+        }
+    };
+    
+    // --- UTILITY FUNCTIONS ---
+    function generateUniqueId(passcode) {
+        // Creates a unique ID based on the passcode and current timestamp
+        return `${passcode}-${Date.now().toString(36)}`;
+    }
+
+    // --- INITIALIZATION ---
+    window.onload = function() {
+        // Load Font Awesome icons
+        document.head.innerHTML += '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">';
+        
+        // Reload studentsData from storage every time the page loads (CRITICAL FOR LINKING)
+        studentsData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || [];
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role');
+        const key = urlParams.get('key');
+
+        if (role === 'teacher' && key === TEACHER_SECRET_KEY) {
+            initializeTeacherDashboard();
+        } else {
+            initializeLearnerAssessment();
+        }
+    };
+
+
+    // ===== TEACHER MAINFRAME FUNCTIONS =====
+    function initializeTeacherDashboard() {
+        document.getElementById('learnerAssessmentView').classList.add('hidden');
+        document.getElementById('teacherDashboardView').classList.remove('hidden');
+        document.getElementById('mainHeader').textContent = 'Phil-IRI JHS Teacher Mainframe';
+        document.getElementById('subHeader').textContent = 'Secure Access Granted';
+        renderTeacherDashboard();
+    }
+
+    function clearAllData() {
+        if (confirm("WARNING: This will permanently delete ALL recorded learner data in this browser's storage. Are you sure?")) {
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            studentsData = [];
+            renderTeacherDashboard();
+            alert("All learner data has been cleared.");
+        }
+    }
+
+    function renderTeacherDashboard() {
+        const tbody = document.getElementById('dashboard-table').querySelector('tbody');
+        const noDataMessage = document.getElementById('no-data-message');
+        const summaryMetrics = document.getElementById('summary-metrics');
+        
+        // RELOAD DATA (CRITICAL LINKING STEP)
+        studentsData = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || [];
+
+        tbody.innerHTML = '';
+        summaryMetrics.innerHTML = '';
+        
+        if (studentsData.length === 0) {
+            noDataMessage.style.display = 'block';
+            return;
+        }
+        noDataMessage.style.display = 'none';
+
+        // 1. Render Table Rows
+        let independent = 0;
+        let instructional = 0;
+        let frustration = 0;
+        let gradeReady = 0;
+
+        studentsData.forEach((student, index) => {
+            const levelString = student.finalReadingLevel || 'N/A';
+            const level = levelString.split('(')[0].trim();
+            const levelClass = `level-${level.toLowerCase().replace('/', '').replace(' ', '').trim()}`;
+            
+            if (level.includes('Grade-Ready')) { gradeReady++; }
+            else if (level.includes('Independent')) { independent++; }
+            else if (level.includes('Instructional')) { instructional++; }
+            else if (level.includes('Frustration')) { frustration++; }
+            
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${student.name}</td>
+                <td>${student.currentGrade}</td>
+                <td>${student.gstScore === null ? 'N/A' : student.gstScore + ' / 40'}</td>
+                <td class="${levelClass}">${levelString}</td>
+                <td>${student.wpm || 'N/A'}</td>
+                <td>${student.passageGrade || 'N/A'}</td>
+                <td>${student.skillGap || 'N/A'}</td>
+            `;
+        });
+
+        // 2. Render Summary Metrics
+        const totalAssessed = studentsData.length;
+        
+        summaryMetrics.innerHTML = `
+            <div>Total Learners: <span style="color:var(--text-color);">${totalAssessed}</span></div>
+            <div>GST Passers (Grade-Ready): <span class="level-gradeready" style="padding: 5px; border-radius: 4px;">${gradeReady}</span></div>
+            <div>Independent: <span class="level-independent" style="padding: 5px; border-radius: 4px;">${independent}</span></div>
+            <div>Instructional: <span class="level-instructional" style="padding: 5px; border-radius: 4px;">${instructional}</span></div>
+            <div>Frustration: <span class="level-frustration" style="padding: 5px; border-radius: 4px;">${frustration}</span></div>
+        `;
+    }
+
+    // ===== LEARNER ASSESSMENT FUNCTIONS (FRONT-END) =====
+
+    function initializeLearnerAssessment() {
+        document.getElementById('teacherDashboardView').classList.add('hidden');
+        document.getElementById('learnerAssessmentView').classList.remove('hidden');
+        document.getElementById('mainHeader').textContent = 'Phil-IRI JHS Learner Assessment';
+        document.getElementById('subHeader').textContent = 'Please login to begin.';
+        
+        // Hide all steps, show only login screen initially
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('step0').classList.add('hidden');
+        document.getElementById('step1').classList.add('hidden');
+        document.getElementById('step2').classList.add('hidden');
+        document.getElementById('step3').classList.add('hidden');
+        document.getElementById('step5').classList.add('hidden');
+    }
+
+    function learnerLogin() {
+        const passcode = document.getElementById('learnerPasscode').value.trim();
+        const studentInfo = STUDENT_PASSCODES[passcode];
+
+        if (studentInfo) {
+            // Find if this student (by passcode) already has data in storage
+            let existingData = studentsData.find(s => s.passcode === passcode);
+
+            if (!existingData) {
+                // First assessment for this student/passcode
+                currentLearnerData = { 
+                    id: generateUniqueId(passcode),
+                    passcode: passcode,
+                    name: studentInfo.name, 
+                    currentGrade: studentInfo.grade, 
+                    currentSection: studentInfo.section || 'N/A',
+                    date: new Date().toLocaleDateString(),
+                    // Initialize assessment results to null/N/A
+                    gstScore: null, finalReadingLevel: null, passageGrade: null, 
+                    wpm: null, skillGap: null, assessmentStarted: true
+                };
+            } else {
+                // Resume or overwrite existing assessment
+                currentLearnerData = existingData;
+                alert(`Welcome back, ${currentLearnerData.name}. Starting a new assessment will overwrite previous results.`);
+            }
+
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('step0').classList.remove('hidden');
+            
+            document.getElementById('studentName').value = currentLearnerData.name;
+            document.getElementById('studentName').disabled = true; 
+            document.getElementById('studentGrade').value = currentLearnerData.currentGrade;
+            document.getElementById('studentGrade').disabled = false; 
+
+            document.getElementById('subHeader').textContent = `Welcome, ${currentLearnerData.name}. Start the 40-item screening test.`;
+            loadGST();
+            window.scrollTo(0, 0);
+
+        } else {
+            alert("Invalid passcode. Please check your code and try again.");
+            document.getElementById('learnerPasscode').value = ''; 
+        }
+    }
+
+
+    function loadGST() {
+        const container = document.getElementById('gstQuestionsContainer');
+        container.innerHTML = '';
+        gstQuestions.forEach((q, i) => {
+            let li = document.createElement('li');
+            if (i > 0 && i % 10 === 0) { li.style.marginTop = '30px'; li.style.borderTop = '2px dashed #ccc'; li.style.paddingTop = '20px'; }
+            li.innerHTML = `<strong>${i + 1}. ${q.question}</strong><br>`;
+            q.choices.forEach(c => {
+                li.innerHTML += `<label><input type="radio" name="gstq${i}" value="${c.charAt(0)}"> ${c}</label>`;
+            });
+            container.appendChild(li);
+        });
+    }
+
+    function getStartingPassageGrade(currentGrade, gstScore) {
+        // Determines the starting passage grade based on GST score and current grade
+        const gradeNum = parseInt(currentGrade);
+        
+        if (gstScore >= GST_PASS_THRESHOLD) {
+            return { grade: gradeNum, message: "GST Passed. Learner is Grade-Ready. No further individual assessment needed." };
+        } 
+        
+        // For JHS (G7-G10), the recommended starting point is the grade level where the learner failed.
+        let startGrade = gradeNum;
+        if (gstScore >= 20) { // Instructional/Near passing
+            startGrade = Math.max(4, gradeNum - 2); // Start 2 grades down, min Grade 4
+        } else if (gstScore >= 10) { // Moderate Frustration
+            startGrade = Math.max(4, gradeNum - 3); // Start 3 grades down, min Grade 4
+        } else { // Severe Frustration
+             startGrade = 4; // Start at the lowest available passage (Grade 4)
+        }
+        
+        return { 
+            grade: startGrade.toString(), 
+            message: `GST Failed. Individual assessment starts at Grade ${startGrade} passage.` 
+        };
+    }
+
+    function submitGST() {
+        const learnerName = document.getElementById('studentName').value.trim();
+        const currentGrade = document.getElementById('studentGrade').value;
+        
+        let rawGSTScore = 0;
+        const totalQuestions = gstQuestions.length;    
+
+        for (let i = 0; i < totalQuestions; i++) {
+            const selectedAnswer = document.querySelector(`input[name="gstq${i}"]:checked`);
+            if (selectedAnswer && selectedAnswer.value === gstQuestions[i].correct) {
+                rawGSTScore++;
+            }
+        }
+
+        currentLearnerData.gstScore = rawGSTScore;
+        currentLearnerData.currentGrade = currentGrade; // Update current grade from selection
+        
+        submitGSTAnalysis();
+    }
+
+    function submitGSTAnalysis() {
+        const outputDiv = document.getElementById('gstResultOutput');
+        const gstScore = currentLearnerData.gstScore;
+        const totalQuestions = gstQuestions.length;
+        const currentGrade = currentLearnerData.currentGrade;
+
+        const startingPoint = getStartingPassageGrade(currentGrade, gstScore);
+
+        const passStatus = gstScore >= GST_PASS_THRESHOLD    
+            ? `<strong class="${PHIL_IRI_LEVELS.Independent.className}">PASS: Grade-Ready</strong>`    
+            : `<strong class="${PHIL_IRI_LEVELS.Frustration.className}">FAIL: Needs Individual Assessment</strong>`;
+
+        outputDiv.innerHTML = `
+            <h3>Screening Test Result for ${currentLearnerData.name} (Grade ${currentGrade})</h3>
+            <table class="result-table">
+                <tr><th>GST Score</th><td>${gstScore} / ${totalQuestions}</td></tr>
+                <tr><th>Passing Threshold</th><td>${GST_PASS_THRESHOLD} / 40</td></tr>
+                <tr><th>Result Status</th><td>${passStatus}</td></tr>
+            </table>
+            <p style="font-weight:bold; color:var(--text-color); margin-top: 15px;">${startingPoint.message}</p>
+        `;
+
+        document.getElementById('step0').classList.add('hidden');
+        document.getElementById('step1').classList.remove('hidden');
+
+        if (gstScore >= GST_PASS_THRESHOLD) {
+            currentLearnerData.finalReadingLevel = `Grade-Ready (GST Pass: ${gstScore}/${totalQuestions})`;
+            currentLearnerData.skillGap = 'No immediate reading gap identified via screening.';
+            saveAndCompleteAssessment(true); // Complete assessment immediately
+        } else {
+            passageGrade = startingPoint.grade;
+            document.getElementById('passageGradeDisplay').textContent = `Grade ${passageGrade}`;
+            
+            // Failsafe to ensure passage exists
+            if (!passages[passageGrade]) {
+                passageGrade = '4'; // Fallback to G4 if calculated grade is not in the passage list
+                document.getElementById('passageGradeDisplay').textContent = `Grade ${passageGrade} (Adjusted - Lowest Available)`;
+            }
+
+            // Ensure errors are reset for the new assessment flow
+            currentErrors = {};
+            document.getElementById('step2').classList.remove('hidden');
+            document.getElementById('fluencyCheck').classList.add('hidden'); // Hide fluency until startReading is clicked
+            document.getElementById('accuracyCheck').classList.add('hidden'); // Hide accuracy until fluency is done
+            window.scrollTo(0, document.getElementById('step2').offsetTop - 50);
+        }
+    }
+    
+    // --- STEP 2: ORAL READING ---
+    function startReading() {
+        if (!passageGrade || !passages[passageGrade]) { alert("Error: Passage data not available."); return; }
+        
+        const passageData = passages[passageGrade];
+        const passageText = passageData.text;
+        
+        // Count words from the (Total Words: N) marker
+        const match = passageText.match(/\(Total Words: (\d+)\)/);
+        totalWords = match && match[1] ? parseInt(match[1], 10) : passageText.split(/\s+/).filter(w => w).length;
+
+        document.getElementById('oralPassage').innerHTML = `<p>${passageText}</p>`;
+        document.getElementById('wordCountDisplay').textContent = `${totalWords} Words`;
+        
+        // Show Fluency Check step
+        document.getElementById('fluencyCheck').classList.remove('hidden');
+        document.getElementById('readingTime').value = '';
+        document.getElementById('wpmResult').textContent = '';
+        window.scrollTo(0, document.getElementById('fluencyCheck').offsetTop - 50);
+    }
+
+    function calculateFluency() {
+        const readingTime = parseInt(document.getElementById('readingTime').value);
+        if (isNaN(readingTime) || readingTime <= 0) {
+            alert("Please enter a valid reading time in seconds.");
+            return;
+        }
+
+        const wpm = Math.round((totalWords / readingTime) * 60);
+        document.getElementById('wpmResult').innerHTML = `Calculated WPM: <strong>${wpm}</strong>`;
+        
+        currentLearnerData.wpm = wpm;
+        currentLearnerData.passageGrade = passageGrade;
+        
+        // Proceed to Accuracy Check
+        loadAccuracyCheck();
+        document.getElementById('accuracyCheck').classList.remove('hidden');
+        window.scrollTo(0, document.getElementById('accuracyCheck').offsetTop - 50);
+    }
+    
+    function loadAccuracyCheck() {
+        const errorInputsDiv = document.getElementById('errorInputs');
+        errorInputsDiv.innerHTML = '';
+        currentErrors = {}; // Reset errors
+
+        errorTypes.forEach(errorType => {
+            currentErrors[errorType] = 0; // Initialize count
+            const inputGroup = document.createElement('div');
+            inputGroup.innerHTML = `
+                <label for="error-${errorType}">${errorType}:</label>
+                <input type="number" id="error-${errorType}" min="0" value="0" onchange="updateErrorCount('${errorType}', this.value)" style="margin-bottom:0;">
+            `;
+            errorInputsDiv.appendChild(inputGroup);
+        });
+    }
+
+    function updateErrorCount(errorType, value) {
+        currentErrors[errorType] = parseInt(value) || 0;
+    }
+
+    function submitOralErrors() {
+        // Compute Total Errors
+        let totalErrors = 0;
+        let nonSelfCorrectionErrors = 0;
+        for (const type in currentErrors) {
+            if (currentErrors[type] > 0) {
+                totalErrors += currentErrors[type];
+                if (type !== "Self-Corrections") {
+                    nonSelfCorrectionErrors += currentErrors[type];
+                }
+            }
+        }
+        
+        // Word Recognition (WR) Score: (Total Words - Errors) / Total Words
+        const wrAccuracy = ((totalWords - nonSelfCorrectionErrors) / totalWords) * 100;
+        const wrLevel = determineLevel(wrAccuracy, 0, 'WR');
+
+        currentLearnerData.wordRecognitionScore = wrAccuracy.toFixed(2);
+        currentLearnerData.wrLevel = wrLevel;
+        currentLearnerData.errors = currentErrors;
+
+        // Proceed to Comprehension (Step 3)
+        loadComprehension();
+        document.getElementById('step2').classList.add('hidden');
+        document.getElementById('step3').classList.remove('hidden');
+        window.scrollTo(0, document.getElementById('step3').offsetTop - 50);
+    }
+
+
+    // --- STEP 3: COMPREHENSION ---
+    function loadComprehension() {
+        const passageData = passages[passageGrade];
+        const container = document.getElementById('comprehensionQuestions');
+        container.innerHTML = '';
+
+        passageData.questions.forEach((q, i) => {
+            let li = document.createElement('li');
+            li.innerHTML = `<strong>${q.question}</strong><br>`;
+            q.choices.forEach(c => {
+                // Use a different name convention for comprehension questions
+                li.innerHTML += `<label><input type="radio" name="compq${i}" value="${c.charAt(0)}"> ${c}</label>`;
+            });
+            container.appendChild(li);
+        });
+    }
+
+    function submitComprehension() {
+        const passageData = passages[passageGrade];
+        let correctAnswers = 0;
+        const totalQuestions = passageData.questions.length;
+
+        passageData.questions.forEach((q, i) => {
+            const selectedAnswer = document.querySelector(`input[name="compq${i}"]:checked`);
+            if (selectedAnswer && selectedAnswer.value === q.correct) {
+                correctAnswers++;
+            }
+        });
+
+        // Comprehension (C) Score
+        const compScore = (correctAnswers / totalQuestions) * 100;
+        const compLevel = determineLevel(0, compScore, 'C');
+        
+        currentLearnerData.comprehensionScore = compScore.toFixed(2);
+        currentLearnerData.compLevel = compLevel;
+        
+        // Final Determination
+        determineFinalReadingLevel();
+    }
+
+
+    // --- STEP 5: FINAL SUMMARY & SAVE ---
+
+    function determineLevel(wrScore, compScore, type) {
+        // Determine the level (Frustration, Instructional, Independent)
+        if (type === 'WR') {
+            if (wrScore >= PHIL_IRI_LEVELS.Independent.wrMin) return 'Independent';
+            if (wrScore >= PHIL_IRI_LEVELS.Instructional.wrMin) return 'Instructional';
+            return 'Frustration';
+        } else if (type === 'C') {
+            if (compScore >= PHIL_IRI_LEVELS.Independent.compMin) return 'Independent';
+            if (compScore >= PHIL_IRI_LEVELS.Instructional.compMin) return 'Instructional';
+            return 'Frustration';
+        }
+    }
+
+    function determineFinalReadingLevel() {
+        const wrLevel = currentLearnerData.wrLevel;
+        const compLevel = currentLearnerData.compLevel;
+
+        let finalLevel = '';
+        let skillGap = '';
+
+        if (wrLevel === 'Frustration' || compLevel === 'Frustration') {
+            finalLevel = 'Frustration';
+            if (wrLevel === 'Frustration' && compLevel === 'Frustration') {
+                skillGap = 'Severe Reading Gap - Focus on BOTH Word Recognition and Comprehension';
+            } else if (wrLevel === 'Frustration') {
+                skillGap = 'Primary Gap: Word Recognition (Decoding/Sight Words)';
+            } else {
+                skillGap = 'Primary Gap: Comprehension (Recall/Inference)';
+            }
+        } else if (wrLevel === 'Instructional' || compLevel === 'Instructional') {
+            finalLevel = 'Instructional';
+            if (wrLevel === 'Instructional' && compLevel === 'Instructional') {
+                skillGap = 'Instructional Level - Focus on reading efficiency and deeper comprehension.';
+            } else if (wrLevel === 'Instructional') {
+                skillGap = 'Instructional WR / Independent C - Focus on reading speed/fluency.';
+            } else {
+                skillGap = 'Independent WR / Instructional C - Focus on higher-order comprehension skills.';
+            }
+        } else {
+            finalLevel = 'Independent';
+            skillGap = 'Independent Level - Ready for grade-level materials.';
+        }
+
+        currentLearnerData.finalReadingLevel = `${finalLevel} (${currentLearnerData.passageGrade})`;
+        currentLearnerData.skillGap = skillGap;
+
+        // Display results
+        document.getElementById('finalReadingLevelDisplay').textContent = currentLearnerData.finalReadingLevel;
+        document.getElementById('skillGapDisplay').textContent = currentLearnerData.skillGap;
+        document.getElementById('step3').classList.add('hidden');
+        document.getElementById('step5').classList.remove('hidden');
+
+        // Final save
+        saveAndCompleteAssessment();
+    }
+    
+    function saveAndCompleteAssessment(isGSTOnly = false) {
+        // 1. Remove the old data for this student (by ID) if it exists
+        studentsData = studentsData.filter(student => student.id !== currentLearnerData.id);
+
+        // 2. Add the newly completed data
+        if (isGSTOnly) {
+            // If only GST was done, clear out individual assessment fields
+            currentLearnerData.wpm = 'N/A';
+            currentLearnerData.passageGrade = 'N/A';
+        }
+        studentsData.push(currentLearnerData);
+
+        // 3. Save to Local Storage (CRITICAL LINKING STEP)
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(studentsData));
+
+        if (!isGSTOnly) {
+             window.scrollTo(0, 0); // Scroll to top for final summary
+        } else {
+             // If GST Only, force display of Step 5 after saving
+             document.getElementById('step1').classList.add('hidden');
+             document.getElementById('step5').classList.remove('hidden');
+             document.getElementById('finalReadingLevelDisplay').textContent = currentLearnerData.finalReadingLevel;
+             document.getElementById('skillGapDisplay').textContent = currentLearnerData.skillGap;
+        }
+    }
+</script>
+</body>
+</html>
